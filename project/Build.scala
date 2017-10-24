@@ -47,10 +47,11 @@ object Build extends sbt.Build {
     .settings(libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value)
     .settings(net.virtualvoid.sbt.graph.Plugin.graphSettings: _*)
     .settings(Packaging.settings)
+    .settings(mainClass in Compile := Some("com.yiyiyi.bucket.pubsub.PubsubApp"))
 
   lazy val basicSettings: Seq[Def.Setting[_]] = Defaults.coreDefaultSettings ++ Seq(
     organization := "com.yiyiyi.card",
-    version := "0.0.1",
+    version := "0.1",
     resolvers ++= Seq(
       "Local Maven" at Path.userHome.asURL + ".m2/repository",
       "Typesafe repo" at "http://repo.typesafe.com/typesafe/releases/",
