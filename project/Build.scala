@@ -117,13 +117,13 @@ object Dependencies {
 
   private val basic: Seq[ModuleID] = jackson ++ log ++ test
 
-  val bucket_base: Seq[ModuleID] = basic
+  val bucket_base: Seq[ModuleID] = basic ++ akka_http
 
   val bucket_store: Seq[ModuleID] = basic
 
-  val bucket_inbound: Seq[ModuleID] = basic ++ akka ++ akka_http
+  val bucket_inbound: Seq[ModuleID] = bucket_base ++ akka
 
-  val bucket_pubsub: Seq[ModuleID] = bucket_base ++ akka ++ akka_http
+  val bucket_pubsub: Seq[ModuleID] = bucket_base ++ akka
 
 }
 
