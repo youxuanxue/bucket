@@ -1,5 +1,7 @@
 package com.yiyiyi.bucket.pubsub
 
+import java.util
+
 import com.typesafe.config.{ Config, ConfigFactory }
 
 /**
@@ -19,4 +21,28 @@ object PubsubConfig {
     lazy val fullRoom: String = configuration.getString("pubsub.message.fullRoom")
     lazy val unAvailableRoom: String = configuration.getString("pubsub.message.unAvailableRoom")
   }
+
+  object akka {
+    lazy val roles: util.List[String] = configuration.getStringList("akka.cluster.roles")
+  }
+
+  object actor {
+    private lazy val actorConfiguration = configuration.getConfig("pubsub.actor")
+
+    lazy val timeout: Int = actorConfiguration.getInt("timeout")
+
+    lazy val dashboardLifeHours: Int = actorConfiguration.getInt("dashboardLifeHours")
+    lazy val roomLifeHours: Int = actorConfiguration.getInt("roomLifeHours")
+    lazy val userLifeHours: Int = actorConfiguration.getInt("userLifeHours")
+
+    lazy val overflowRate: Double = actorConfiguration.getDouble("overflowRate")
+
+    lazy val roomCount: Int = actorConfiguration.getInt("roomCount")
+    lazy val userCount: Int = actorConfiguration.getInt("userCount")
+
+    lazy val dashBoardTick: Int = actorConfiguration.getInt("dashBoardTick")
+    lazy val roomTick: Int = actorConfiguration.getInt("roomTick")
+    lazy val userTick: Int = actorConfiguration.getInt("userTick")
+  }
+
 }

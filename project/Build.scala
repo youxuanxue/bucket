@@ -76,8 +76,8 @@ object Build extends sbt.Build {
 
 object Dependencies {
 
-  private val AKKA_VERSION = "2.5.0-RC1"
-  private val AKKA_HTTP_VERSION = "10.0.5"
+  private val AKKA_VERSION = "2.5.6"
+  private val AKKA_HTTP_VERSION = "10.0.10"
   private val SLF4J_VERSION = "1.7.24"
 
   val akka = Seq(
@@ -99,6 +99,7 @@ object Dependencies {
   val akka_http = Seq(
     "com.typesafe.akka" %% "akka-http-core" % AKKA_HTTP_VERSION,
     "com.typesafe.akka" %% "akka-http" % AKKA_HTTP_VERSION,
+//    "com.typesafe.akka" %% "akka-http-testkit" % AKKA_HTTP_VERSION,
     "com.typesafe.akka" %% "akka-http-spray-json" % AKKA_HTTP_VERSION
   )
 
@@ -108,7 +109,8 @@ object Dependencies {
     "org.slf4j" % "slf4j-api" % SLF4J_VERSION,
     "org.slf4j" % "jcl-over-slf4j" % SLF4J_VERSION,
     "org.slf4j" % "log4j-over-slf4j" % SLF4J_VERSION,
-    "ch.qos.logback" % "logback-classic" % "1.2.1"
+    "ch.qos.logback" % "logback-classic" % "1.2.1",
+    "org.codehaus.janino" % "janino" % "3.0.7"
   )
 
   val test = Seq(

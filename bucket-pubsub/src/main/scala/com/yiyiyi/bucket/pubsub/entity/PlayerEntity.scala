@@ -1,32 +1,20 @@
 package com.yiyiyi.bucket.pubsub.entity
 
-import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Props }
-import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings, ShardRegion }
-import com.yiyiyi.bucket.pubsub.{ Command, KillActor }
+import akka.actor.{ Actor, ActorContext, ActorLogging, ActorRef, Props }
+import com.yiyiyi.bucket.pubsub.KillActor
+import com.yiyiyi.bucket.pubsub.entity.PlayerEntity.DealCard
 
 /**
  * @author xuejiao
  */
 object PlayerEntity {
-  def props() = Props(classOf[PlayerEntity])
+  def props(roomCtx: ActorContext) = Props.create(classOf[PlayerEntity], roomCtx)
 
   val typeName: String = getClass.getSimpleName
 
-  private val extractEntityId: ShardRegion.ExtractEntityId = {
-    case cmd: Command => (cmd.id.toString, cmd)
-  }
-
-  private val extractShardId: ShardRegion.ExtractShardId = {
-    case cmd: Command => (cmd.id.hashCode % 100).toString
-  }
-
-  def startSharding(implicit system: ActorSystem): ActorRef =
-    ClusterSharding(system)
-      .start(typeName, props(), ClusterShardingSettings(system), extractEntityId, extractShardId)
-
-  def startShardingProxy(implicit system: ActorSystem): ActorRef =
-    ClusterSharding(system).startProxy(typeName, None, extractEntityId, extractShardId)
-
+  case object DealCard
+  final case class Joined(ref: ActorRef)
+  final case class StatusMessage(text: String)
 }
 
 final class PlayerEntity extends Actor with ActorLogging {
@@ -36,5 +24,8 @@ final class PlayerEntity extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case KillActor(_) =>
+
+    case DealCard =>
+
   }
 }

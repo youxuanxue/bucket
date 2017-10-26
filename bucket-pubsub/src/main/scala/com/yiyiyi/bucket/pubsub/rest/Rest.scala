@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.cluster.sharding.ClusterSharding
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import com.yiyiyi.bucket.base
 import com.yiyiyi.bucket.pubsub.PubsubBoard
@@ -18,6 +19,7 @@ import scala.concurrent.ExecutionContextExecutor
 trait Rest extends Directives {
   implicit val system: ActorSystem
   implicit val timeout: Timeout
+  implicit val materializer: ActorMaterializer
   implicit val ec: ExecutionContextExecutor = system.dispatcher
 
   val log: Logger = LoggerFactory.getLogger(getClass)
