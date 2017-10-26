@@ -14,4 +14,9 @@ object PubsubConfig {
     lazy val port: Int = configuration.getInt(s"pubsub.app.port")
     lazy val timeout: Int = configuration.getInt("pubsub.app.timeout")
   }
+
+  object message {
+    lazy val fullRoom: String = configuration.getString("pubsub.message.fullRoom")
+    lazy val unAvailableRoom: String = configuration.getString("pubsub.message.unAvailableRoom")
+  }
 }
