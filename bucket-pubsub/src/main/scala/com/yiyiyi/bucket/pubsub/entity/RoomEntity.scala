@@ -97,7 +97,9 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
       context.become(waiting)
       commander ! true
 
+    case DealCard(_) =>
 
+    case Play(_, playerId) =>
 
     case _ =>
       sender() ! false
