@@ -1,27 +1,26 @@
 package com.yiyiyi.bucket.pubsub.model
 
-import com.yiyiyi.bucket.pubsub.model.RoomIncomingMessage.RoomIncomingMessage
-import com.yiyiyi.bucket.pubsub.model.RoomOutgoingMessage.RoomOutgoingMessage
+import com.yiyiyi.bucket.base.model.Card
+import com.yiyiyi.bucket.pubsub.model.RoomMessage.RoomMessage
 
 /**
  * @author xuejiao
  */
-final case class RoomIncomingEvent(
-  var message: RoomIncomingMessage = RoomIncomingMessage.unknown
-)
 
-object RoomIncomingMessage extends Enumeration {
-  type RoomIncomingMessage = Value
-  val unknown, ready, leave = Value
+object RoomMessage extends Enumeration {
+  type RoomMessage = Value
+  val unknown = Value
+  val fullRoom, join, ready, leave = Value
+  val dealingCard, dealCard, compete = Value
+  val playing, play, played, checkSuccess, checkFail, hint = Value
+
 }
 
-final case class RoomOutgoingEvent(
+final case class RoomEvent(
+  var message: RoomMessage = RoomMessage.unknown,
   var playerId: Long = 0L,
-  var message: RoomOutgoingMessage = RoomOutgoingMessage.unknown
+  var cards: List[Card] = List(),
+  var competeBoost: Int = 1, // 抢牌翻倍倍率,
+  var hints: List[List[Card]] = List()
 )
 
-object RoomOutgoingMessage extends Enumeration {
-  type RoomOutgoingMessage = Value
-  val unknown, fullRoom, join, leave, ready, dealCard = Value
-
-}

@@ -134,10 +134,13 @@ object CardType extends Enumeration {
 
   val joker = Value // 鬼牌
 
-  val commons = List(spade, heart, club, diamond)
-
-  val numPerCard: Int = 13
-  val numPerJoker: Int = 2
+  val numMap = Map(
+    spade -> 13,
+    heart -> 13,
+    club -> 13,
+    diamond -> 13,
+    joker -> 2
+  )
 }
 
 object CardAction extends Enumeration {
@@ -149,6 +152,7 @@ object CardAction extends Enumeration {
   val draw = Value // 摸牌
   val play = Value // 打出
   val discard = Value //弃牌
+  var compete = Value //叫牌／抢牌
 }
 
 object RoomStatus extends Enumeration {

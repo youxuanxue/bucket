@@ -2,9 +2,8 @@ package com.yiyiyi.bucket.pubsub.entity.model
 
 import com.yiyiyi.bucket.base.model.RoomStatus.RoomStatus
 import com.yiyiyi.bucket.base.model.{ Card, RoomStatus }
+import com.yiyiyi.bucket.pubsub.model.{ RoomEvent, RoomMessage }
 import com.yiyiyi.bucket.pubsub.service.Poker
-
-import scala.util.Random
 
 /**
  * @author xuejiao
@@ -16,8 +15,9 @@ final case class RoomObj(
     var status: RoomStatus = RoomStatus.off,
     var players: Map[Long, PlayerObj] = Map(),
     var playingSort: List[Long] = List(),
-    var curPlayingIndex: Int = -1,
-    var againstCards: List[Card] = List()
+    var playingIndex: Int = -1,
+    var againstCards: List[Card] = List(),
+    var competeBoost: Int = 0 // 0 表示没有人抢牌，否则在下一轮要加倍
 ) {
 
   def isFull: Boolean = {
@@ -32,39 +32,87 @@ final case class RoomObj(
   }
 
   def deal(): Unit = {
+    val readyEvent = RoomEvent(message = RoomMessage.dealingCard)
+    players.foreach(x => x._2.outRef ! readyEvent)
+
     players.foreach(_._2.prepare())
 
     var deals = poker.deal()
     players.foreach {
       case (_, obj) =>
         obj.remainCards = deals.head
+        val event = RoomEvent(
+          message = RoomMessage.dealCard,
+          cards = obj.remainCards
+        )
+
+        obj.outRef ! event
+
         deals = deals.tail
     }
 
-    // todo: 重新安排顺序
-    playingSort = Random.shuffle(players.keys.toList)
-    curPlayingIndex = 0
+    // 重新安排顺序
+    playingSort = poker.playingSort(players)
     againstCards = List()
+    playingIndex = 0
+
+    // compete 叫牌
+    val competeEvent = RoomEvent(
+      message = RoomMessage.compete,
+      playerId = playingSort(playingIndex),
+      competeBoost = competeBoost
+    )
+    players.foreach(x => x._2.outRef ! competeEvent)
   }
 
-  def check(cards: List[Card]): Boolean = {
+  def check(playerId: Long, cards: List[Card]): Unit = {
+    val player = players(playerId)
+
     if (poker.play(againstCards, cards)) {
-      true
+      player.outRef ! RoomEvent(message = RoomMessage.checkSuccess)
     }
-    else false
+    else {
+      player.outRef ! RoomEvent(message = RoomMessage.checkFail)
+    }
   }
 
-  def play(cards: List[Card]): Unit = {
+  def play(playerId: Long, cards: List[Card]): Unit = {
+    //todo: 解除超时任务
+
+    val event = RoomEvent(
+      message = RoomMessage.played,
+      playerId = playerId,
+      cards = cards
+    )
+    (players - playerId).foreach(x => x._2.outRef ! event)
+
+    //todo: 特效：炸弹
+
+    // 通知下一家出牌
     againstCards = cards
-    curPlayingIndex = (curPlayingIndex + 1) % players.size
+    playingIndex = poker.nextPlayingIndex(playingIndex)
+    val playingPlayerId = playingSort(playingIndex)
+    val next = RoomEvent(
+      message = RoomMessage.playing,
+      playerId = playingPlayerId
+    )
+    players(playingPlayerId).outRef ! next
+
+    //todo: 超时继续通知下一家
   }
 
-  def hintPlay(): List[List[Card]] = {
-    val player = players(curPlayingIndex)
+  def hintPlay(playerId: Long): Unit = {
+    val player = players(playerId)
 
     val hints = poker.hint(againstCards, player.remainCards)
 
-    hints
+    val event = RoomEvent(
+      message = RoomMessage.hint,
+      playerId = playerId,
+      hints = hints
+    )
+
+    player.outRef ! event
   }
 
 }

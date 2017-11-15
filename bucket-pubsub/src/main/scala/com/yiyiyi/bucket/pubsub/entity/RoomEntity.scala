@@ -5,10 +5,10 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, PoisonPill, Props, Stash }
 import akka.cluster.sharding.{ ClusterSharding, ClusterShardingSettings, ShardRegion }
 import com.yiyiyi.bucket.base.model.{ Card, RoomStatus }
-import com.yiyiyi.bucket.pubsub.entity.model.{ PlayerObj, RoomObj }
-import com.yiyiyi.bucket.pubsub.model.{ RoomIncomingEvent, RoomIncomingMessage, RoomOutgoingEvent, RoomOutgoingMessage }
-import com.yiyiyi.bucket.pubsub.service.DizhuPoker
 import com.yiyiyi.bucket.pubsub._
+import com.yiyiyi.bucket.pubsub.entity.model.{ PlayerObj, RoomObj }
+import com.yiyiyi.bucket.pubsub.model.{ RoomEvent, RoomMessage }
+import com.yiyiyi.bucket.pubsub.service.DoudizhuPoker
 
 import scala.concurrent.duration._
 
@@ -40,20 +40,17 @@ object RoomEntity {
   case object WaitingRoom
   case object Nothing
 
+  final case class Sink(id: Long, playerId: Long, event: RoomEvent) extends Command
+  final case class Source(id: Long, playerId: Long, outRef: ActorRef) extends Command
+
   final case class PlayerIn(playerId: Long, outRef: ActorRef)
   final case class PlayerOut(playerId: Long)
   final case class PlayerReady(playerId: Long)
+  final case class Compete(id: Long, playerId: Long, competed: Boolean, boost: Int) extends Command
 
-  final case class Sink(id: Long, playerId: Long, event: RoomIncomingEvent) extends Command
-  final case class Source(id: Long, playerId: Long, outRef: ActorRef) extends Command
-
-  final case class DealCard(id: Long, playerId: Long) extends Command
-
-  final case class PlayingIndex(id: Long) extends Command
-
-  final case class HintPlay(id: Long) extends Command
-  final case class CheckPlay(id: Long, cards: List[Card]) extends Command
-  final case class Play(id: Long, cards: List[Card]) extends Command
+  final case class HintPlay(id: Long, playerId: Long) extends Command
+  final case class CheckPlay(id: Long, playerId: Long, cards: List[Card]) extends Command
+  final case class Play(id: Long, playerId: Long, cards: List[Card]) extends Command
 }
 
 final class RoomEntity extends Actor with Stash with ActorLogging {
@@ -112,10 +109,10 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
 
     case Sink(_, playerId, event) =>
       event.message match {
-        case RoomIncomingMessage.ready =>
+        case RoomMessage.ready =>
           self ! PlayerReady(playerId)
 
-        case RoomIncomingMessage.leave =>
+        case RoomMessage.leave =>
           self ! PlayerOut(playerId)
 
         case x =>
@@ -132,7 +129,7 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
       unstashAll()
 
     case FullRoom =>
-      context.become(full)
+      context.become(playing)
       unstashAll()
 
     case WaitingRoom =>
@@ -148,11 +145,11 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
       sender() ! PubsubConfig.message.unAvailableRoom
   }
 
-  private def full: Receive = common orElse {
+  private def playing: Receive = common orElse {
     case PlayerIn(_, outRef) =>
       updateActiveEntity()
       if (outRef != null) {
-        outRef ! RoomOutgoingEvent(message = RoomOutgoingMessage.fullRoom)
+        outRef ! RoomEvent(message = RoomMessage.fullRoom)
       }
 
     case PlayerOut(playerId) =>
@@ -162,28 +159,25 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
     case PlayerReady(playerId) =>
       updateActiveEntity()
       playerReady(playerId)
+      if (obj.players.forall(x => x._2.ready)) {
+        obj.deal()
+      }
 
-    case DealCard(_, playerId) =>
-      val commander = sender()
-      val cards = obj.players(playerId).remainCards
-      commander ! cards
+    case Compete(_, playerId, competed, boost) =>
+      updateActiveEntity()
+      compete(playerId, competed, boost)
 
-    case PlayingIndex(_) =>
-      sender() ! obj.curPlayingIndex
+    case HintPlay(_, playerId) =>
+      updateActiveEntity()
+      obj.hintPlay(playerId)
 
-    case HintPlay(_) =>
-      val commander = sender()
-      commander ! obj.hintPlay()
+    case CheckPlay(_, playerId, cards) =>
+      updateActiveEntity()
+      obj.check(playerId, cards)
 
-    case CheckPlay(_, cards) =>
-      val commander = sender()
-      val isValid = obj.check(cards)
-      commander ! isValid
-
-    case Play(_, cards) =>
-      val commander = sender()
-      obj.play(cards)
-      commander ! true
+    case Play(_, playerId, cards) =>
+      updateActiveEntity()
+      obj.play(playerId, cards)
 
     case _ =>
       sender() ! false
@@ -198,6 +192,10 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
       updateActiveEntity()
       playerLeft(playerId)
 
+    case PlayerReady(playerId) =>
+      updateActiveEntity()
+      playerReady(playerId)
+
     case _ =>
       sender() ! false
   }
@@ -209,7 +207,7 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
 
   private def getOrCreate(): Unit = {
     // todo: loading
-    obj = RoomObj(id, id, new DizhuPoker(), status = RoomStatus.on)
+    obj = RoomObj(id, id, new DoudizhuPoker(), status = RoomStatus.on)
 
     if (obj.isAvailable) {
       if (obj.isFull) self ! FullRoom
@@ -222,31 +220,23 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
     val player = PlayerObj(playerId, System.currentTimeMillis(), outRef)
     obj.players += (playerId -> player)
 
-    val event = RoomOutgoingEvent(
+    val event = RoomEvent(
       playerId = playerId,
-      message = RoomOutgoingMessage.fullRoom
+      message = RoomMessage.fullRoom
     )
     obj.players.foreach(x => x._2.outRef ! event)
 
-    if (obj.isFull) context.become(full)
+    if (obj.isFull) context.become(playing)
   }
 
   private def playerReady(playerId: Long): Unit = {
     obj.players(playerId).ready = true
 
-    val allReady = obj.players.forall(x => x._2.ready)
-    val event = if (allReady) {
-      obj.deal()
-      RoomOutgoingEvent(message = RoomOutgoingMessage.dealCard)
-    }
-    else {
-      RoomOutgoingEvent(
-        playerId = playerId,
-        message = RoomOutgoingMessage.ready
-      )
-    }
-
-    obj.players.foreach(x => x._2.outRef ! event)
+    val readyEvent = RoomEvent(
+      playerId = playerId,
+      message = RoomMessage.ready
+    )
+    obj.players.foreach(x => x._2.outRef ! readyEvent)
   }
 
   private def playerLeft(playerId: Long): Unit = {
@@ -256,20 +246,43 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
 
     playerObj = None
 
-    val event = RoomOutgoingEvent(
+    val event = RoomEvent(
       playerId = playerId,
-      message = RoomOutgoingMessage.leave
+      message = RoomMessage.leave
     )
     obj.players.foreach(x => x._2.outRef ! event)
+  }
 
-    // todo： 复杂的状态
-    if (obj.players.isEmpty) {
-      context.become(off)
+  private def compete(playerId: Long, competed: Boolean, boost: Int): Unit = {
+    obj.players(playerId).competed = competed
+
+    if (competed) {
+      obj.competeBoost = boost
+    }
+
+    val allCompeted = obj.players.forall(x => x._2.competed)
+
+    val event = if (allCompeted) {
+      // 根据抢牌结果重新制定顺序
+      obj.playingSort = obj.poker.playingSort(obj.players)
+      obj.playingIndex = 0
+      val playingPlayerId = obj.playingSort(obj.playingIndex)
+      RoomEvent(
+        message = RoomMessage.play,
+        playerId = playingPlayerId
+      )
     }
     else {
-      context.become(waiting)
+      obj.playingIndex = obj.poker.nextPlayingIndex(obj.playingIndex)
+      val playingPlayerId = obj.playingSort(obj.playingIndex)
+      RoomEvent(
+        message = RoomMessage.compete,
+        playerId = playingPlayerId,
+        competeBoost = if (obj.competeBoost > 0) obj.competeBoost * 2 else 1 // 抢牌加倍
+      )
     }
 
+    obj.players.foreach(x => x._2.outRef ! event)
   }
 
 }

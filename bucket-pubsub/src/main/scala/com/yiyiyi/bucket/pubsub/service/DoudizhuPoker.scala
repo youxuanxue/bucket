@@ -1,52 +1,15 @@
 package com.yiyiyi.bucket.pubsub.service
-import com.yiyiyi.bucket.base.model.{ Card, CardType }
-
-import scala.util.Random
+import com.yiyiyi.bucket.base.model.Card
 
 /**
  * @author xuejiao
  */
-class DizhuPoker extends Poker {
+class DoudizhuPoker extends Poker {
   override val playerNum: Int = 3
   override val hiddenNum: Int = 3
-
-  override def shuffle(): List[Card] = {
-    var cards = List[Card]()
-
-    CardType.commons.foreach { curType =>
-      var value = 3 // 从 3 开始，A.value = 14 2.value = 15. 方便排面值的大小计算
-      var count = 0
-      while (count < CardType.numPerCard) {
-        cards +:= Card(curType, value)
-        value += 1
-        count += 1
-      }
-    }
-
-    cards ++= Range.inclusive(1, CardType.numPerJoker * pokerNum)
-      .map(x => Card(CardType.joker, x))
-
-    // todo： check 每个人的牌的最大值，保证不要太幸运。。。
-
-    Random.shuffle(cards)
-  }
-
-  override def deal(): List[List[Card]] = {
-    var shuffles = shuffle()
-
-    val cardNumPerPlayer = (shuffles.size - hiddenNum) / playerNum
-
-    hiddenCards = shuffles.take(hiddenNum)
-    shuffles = shuffles.drop(hiddenNum)
-
-    var deals = List[List[Card]]()
-    while (shuffles.nonEmpty) {
-      deals +:= shuffles.take(cardNumPerPlayer)
-      shuffles = shuffles.drop(cardNumPerPlayer)
-    }
-
-    deals
-  }
+  override val pokerNum: Int = 1
+  override val eachCardNum: Int = 17
+  override val excludeCards: Set[Card] = Set()
 
   override def hint(against: List[Card], cards: List[Card]): List[List[Card]] = {
     List()
@@ -177,14 +140,5 @@ class DizhuPoker extends Poker {
 
   }
 
-}
-
-object DizhuPokerTest {
-  def main(args: Array[String]): Unit = {
-    val poker = new DizhuPoker()
-    val cards = poker.deal()
-
-    cards.foreach(x => println(x))
-  }
 }
 

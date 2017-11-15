@@ -7,7 +7,7 @@ import akka.stream._
 import akka.stream.scaladsl.{ Flow, Sink, Source }
 import com.yiyiyi.bucket.base
 import com.yiyiyi.bucket.pubsub.entity.RoomEntity
-import com.yiyiyi.bucket.pubsub.model.{ RoomIncomingEvent, RoomOutgoingEvent }
+import com.yiyiyi.bucket.pubsub.model.RoomEvent
 /**
  * @author xuejiao
  */
@@ -30,22 +30,22 @@ trait WebSocketRest extends Rest {
     val sink = Flow[Message].map {
       case message: TextMessage =>
         try {
-          val event = base.objectMapper.readValue(message.getStrictText, classOf[RoomIncomingEvent])
+          val event = base.objectMapper.readValue(message.getStrictText, classOf[RoomEvent])
           RoomEntity.Sink(roomId, playerId, event)
         }
         catch {
           case ex: Throwable =>
             log.error(s"not an event: $message")
-            RoomEntity.Sink(roomId, playerId, RoomIncomingEvent())
+            RoomEntity.Sink(roomId, playerId, RoomEvent())
         }
 
       case x =>
         log.error(s"not textMessage: $x")
-        RoomEntity.Sink(roomId, playerId, RoomIncomingEvent())
+        RoomEntity.Sink(roomId, playerId, RoomEvent())
     }
       .to(Sink.actorRef[RoomEntity.Sink](roomSharding, RoomEntity.Nothing))
 
-    val source = Source.actorRef[RoomOutgoingEvent](10, OverflowStrategy.dropBuffer)
+    val source = Source.actorRef[RoomEvent](10, OverflowStrategy.dropBuffer)
       .mapMaterializedValue { outActor =>
         roomSharding ! RoomEntity.Source(roomId, playerId, outActor)
         NotUsed

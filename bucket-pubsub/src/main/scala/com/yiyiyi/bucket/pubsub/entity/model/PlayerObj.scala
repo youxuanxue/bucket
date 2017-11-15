@@ -11,6 +11,7 @@ final case class PlayerObj(
     var index: Long,
     var outRef: ActorRef,
     var ready: Boolean = false,
+    var competed: Boolean = false,
     var playedCards: Vector[List[Card]] = Vector(),
     var remainCards: List[Card] = List()
 ) {
