@@ -222,7 +222,7 @@ final class RoomEntity extends Actor with Stash with ActorLogging {
 
     val event = RoomEvent(
       playerId = playerId,
-      message = RoomMessage.fullRoom
+      message = RoomMessage.join
     )
     obj.players.foreach(x => x._2.outRef ! event)
 
