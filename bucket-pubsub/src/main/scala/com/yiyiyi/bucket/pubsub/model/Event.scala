@@ -1,23 +1,31 @@
 package com.yiyiyi.bucket.pubsub.model
 
 import com.yiyiyi.bucket.base.model.Card
-import com.yiyiyi.bucket.pubsub.model.RoomMessage.RoomMessage
 
 /**
  * @author xuejiao
  */
 
-object RoomMessage extends Enumeration {
-  type RoomMessage = Value
-  val unknown = Value
-  val fullRoom, join, ready, leave = Value
-  val dealingCard, dealCard, compete = Value
-  val playing, play, played, checkSuccess, checkFail, hint = Value
+object RoomMessage {
+  val unknown = "unknown"
+  val fullRoom = "fullRoom"
+  val join = "join"
+  val ready = "ready"
+  val leave = "leave"
+  val dealingCard = "dealingCard"
+  val dealCard = "dealCard"
+  val compete = "compete"
+  val playing = "playing"
+  val play = "play"
+  val played = "played"
+  val checkSuccess = "checkSuccess"
+  val checkFail = "checkFail"
+  val hint = "hint"
 
 }
 
 final case class RoomEvent(
-  var message: RoomMessage = RoomMessage.unknown,
+  var message: String = RoomMessage.unknown,
   var playerId: Long = 0L,
   var cards: List[Card] = List(),
   var competeBoost: Int = 1, // 抢牌翻倍倍率,
